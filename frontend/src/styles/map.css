@@ -1,0 +1,29 @@
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+}
+
+.leaflet-pane {
+  z-index: 400;
+}
+
+.leaflet-marker-icon {
+  z-index: 600;
+}
+
+.leaflet-marker-shadow {
+  z-index: 500;
+}
+
+/* Custom styles for the rectangle */
+.leaflet-interactive {
+  cursor: crosshair;
+}
+
+/* Hide the default Leaflet attribution on small screens */
+@media (max-width: 768px) {
+  .leaflet-control-attribution {
+    display: none;
+  }
+}
