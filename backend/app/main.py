@@ -79,7 +79,7 @@ async def health_check():
         return {"status": "healthy" if is_healthy else "unhealthy", "timestamp": datetime.utcnow().isoformat()}
     except Exception as e:
         logger.error(f"Health check failed: {e}")
-        return {"status": "unhealthy", "error": str(e), "timestamp": datetime.utcnow().isoformat()}
+        return {"status": "unhealthy", "timestamp": datetime.utcnow().isoformat()}
 
 # Helper functions
 def normalize_lat_lon(lat: float, lon: float) -> Tuple[float, float]:
@@ -113,12 +113,13 @@ async def get_city_from_coords(lat: float, lon: float) -> str:
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 @limiter.limit("30/minute")
 async def analyze_climate_hazard_post(
-    request: AnalyzeRequest,
+    request: Request,  # slowapi requires a starlette Request named "request"
+    body: AnalyzeRequest,
     db: ClimateDatabase = Depends(get_database)
 ):
     """Analyze climate hazard for given location and time range (POST)"""
     return await _analyze_climate_hazard(
-        request.lat, request.lon, request.start_year, request.end_year, request.hazard, db
+        body.lat, body.lon, body.start_year, body.end_year, body.hazard, db
     )
 
 @app.get("/api/analyze", response_model=AnalyzeResponse)
@@ -170,8 +171,10 @@ async def _analyze_climate_hazard(
 
         if cached_summary:
             logger.info(f"Using cached hazard summary for {cell_key}")
-            yearly_results = cached_summary["yearly_results"]
+            # Rebuild models: cached values are plain dicts
+            yearly_results = [YearlyResult(**yr) for yr in cached_summary["yearly_results"]]
             trend_data = cached_summary["trend_data"]
+            trend_result = TrendResult(**trend_data)
 
             # Get temperature data for data quality metrics (from cache or fetch)
             temperature_result = await db.get_daily_weather(
@@ -239,15 +242,14 @@ async def _analyze_climate_hazard(
                     data_quality = await _calculate_data_quality(temperature_data)
 
             # Convert temperature data back to DataFrame for analysis
-            df_data = []
-            for item in temperature_data:
-                if item["tmax"] is not None:  # Skip missing values for analysis
-                    df_data.append({
-                        "date": item["date"],
-                        "tmax": item["tmax"]
-                    })
+            # Keep gaps as NaN so they break heatwave runs (NaN > threshold is False)
+            df_data = [
+                {"date": item["date"],
+                 "tmax": item["tmax"] if item["tmax"] is not None else np.nan}
+                for item in temperature_data
+            ]
 
-            if len(df_data) == 0:
+            if all(item["tmax"] is None for item in temperature_data):
                 raise HTTPException(status_code=422, detail="No valid temperature data available after cleaning")
 
             df = pd.DataFrame(df_data)
@@ -357,7 +359,7 @@ async def _analyze_climate_hazard(
         raise
     except Exception as e:
         logger.error(f"Error in analyze_climate_hazard: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/export.csv")
 @limiter.limit("30/minute")
@@ -438,7 +440,7 @@ async def export_csv(
         raise
     except Exception as e:
         logger.error(f"Error in export_csv: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/geocode")
 @limiter.limit("30/minute")
@@ -462,7 +464,7 @@ async def geocode_city(
         raise
     except Exception as e:
         logger.error(f"Error in geocode_city: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # Helper functions

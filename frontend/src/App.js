@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { HazardAnalysisControls } from './components/HazardAnalysisControls';
 import { HazardAnalysisChart } from './components/HazardAnalysisChart';
@@ -17,21 +17,37 @@ const markerIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
+// Create React App only injects REACT_APP_* variables at build time
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
+// react-leaflet v4: map events must be registered via a child component
+function ClickHandler({ onPick }) {
+  useMapEvents({ click: (e) => onPick(e.latlng) });
+  return null;
+}
+
+// MapContainer only reads `center` on mount, so pan explicitly on changes
+function Recenter({ lat, lng }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([lat, lng]);
+  }, [lat, lng, map]);
+  return null;
+}
+
 function App() {
   const [location, setLocation] = useState({ lat: 40.7128, lng: -74.0060 });
   const [analysisData, setAnalysisData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const VITE_API_URL = process.env.VITE_API_URL || 'http://localhost:8000';
-
-  const handleMapClick = (e) => {
-    setLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
+  const handleMapClick = (latlng) => {
+    setLocation({ lat: latlng.lat, lng: latlng.lng });
   };
 
   const handleCitySearch = async (city) => {
     try {
-      const response = await fetch(`${VITE_API_URL}/api/geocode?q=${encodeURIComponent(city)}`);
+      const response = await fetch(`${API_URL}/api/geocode?q=${encodeURIComponent(city)}`);
       if (!response.ok) {
         throw new Error('City not found');
       }
@@ -46,7 +62,7 @@ function App() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${VITE_API_URL}/api/analyze`, {
+      const response = await fetch(`${API_URL}/api/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -79,7 +95,7 @@ function App() {
         end_year: params.end_year.toString(),
         hazard: params.hazard
       });
-      const response = await fetch(`${VITE_API_URL}/api/export.csv?${queryParams}`, {
+      const response = await fetch(`${API_URL}/api/export.csv?${queryParams}`, {
         method: 'GET',
       });
 
@@ -128,10 +144,9 @@ function App() {
             center={[location.lat, location.lng]}
             zoom={10}
             style={{ height: '100%', width: '100%' }}
-            whenCreated={{
-              click: handleMapClick
-            }}
           >
+            <ClickHandler onPick={handleMapClick} />
+            <Recenter lat={location.lat} lng={location.lng} />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

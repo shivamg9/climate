@@ -28,7 +28,7 @@ def compute_percentile_thresholds(
     """
     # Filter to baseline period
     baseline_mask = (tmax_series.index.year >= baseline_start) & (tmax_series.index.year <= baseline_end)
-    baseline_tmax = tmax_series[baseline_mask]
+    baseline_tmax = tmax_series[baseline_mask].dropna()
 
     if len(baseline_tmax) == 0:
         logger.error("No baseline data available for 1991-2020 period; thresholds cannot be computed reliably")
@@ -159,7 +159,7 @@ def detect_heatwave_events(
 
         yearly_stats[year] = {
             'events': len(year_events),
-            'heatwave_days': np.sum(year_exceedance),
+            'heatwave_days': int(sum(e['duration'] for e in year_events)),
             'max_duration': max([e['duration'] for e in year_events]) if year_events else 0,
             'mean_duration': np.mean([e['duration'] for e in year_events]) if year_events else 0.0,
             'mean_intensity': np.mean([

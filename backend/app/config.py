@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     mongodb_uri: str = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
     database_name: str = os.getenv("DATABASE_NAME", "climate_db")
-    frontend_origin: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+    frontend_origin: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
     rate_limit_per_minute: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "30"))
     cache_ttl_days: int = int(os.getenv("CACHE_TTL_DAYS", "30"))
     baseline_start_year: int = 1991

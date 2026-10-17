@@ -38,7 +38,10 @@ A full-stack web application that analyzes historical weather data for a region 
    
    Frontend `.env`:
    ```
-   VITE_API_URL=http://localhost:8000
+   REACT_APP_API_URL=http://localhost:8000
+   ```
+   (The frontend is Create React App, so only `REACT_APP_*` variables are injected. `npm start` serves on http://localhost:3000.)
+   ```
    ```
 
 5. **Run the Application**
@@ -256,23 +259,28 @@ Health check endpoint returning service status.
 
 ## AI Tools Used and How
 
-**OpenAI Codex** was used for:
-- Initial code scaffolding and structure setup
-- Generating boilerplate code for FastAPI endpoints
-- Creating React component skeletons
-- Writing basic utility functions and helpers
-- Creating test case templates
+**Claude (in VS Code)** was used heavily throughout, including for writing most of the code.
 
-**My Role**: 
-- Reviewed, tested, and modified all generated logic
-- Implemented the core heatwave detection algorithm from scratch
-- Designed the data cleaning and quality assessment procedures
-- Created the trend analysis functionality (Mann-Kendall, Sen's slope)
-- Built the caching system with MongoDB integration
-- Designed and implemented the full frontend UI/UX
-- Wrote all validation logic and error handling
-- Conducted thorough testing of all components
-- Integrated all pieces into a coherent application
+**My Role**:
+- Chose the method: day-of-year 95th-percentile thresholds with a ±7-day window, the 1991–2020 WMO baseline, 3+ day events, Mann-Kendall + Sen's slope for trends
+- Reviewed, ran and tested the generated code
+- After submission, ran the full request path end to end and found and fixed several bugs (see "Post-submission fixes")
+
+## Post-submission fixes
+
+Found after the deadline by exercising the full request path with fake weather data; fixed on the `post-submission-fixes` branch:
+
+1. `POST /api/analyze` always returned 500 (slowapi requires a `request: Request` parameter; the body was named `request`).
+2. Cache hits returned 500 (cached dicts were not rebuilt into `YearlyResult`/`TrendResult`).
+3. `heatwave_days` counted every day above threshold, not only days inside 3+ day events.
+4. Missing days were dropped, joining separate hot spells across a gap; gaps are now kept as NaN.
+5. Map click did nothing (`whenCreated` was removed in react-leaflet v4) and the map did not pan on city search.
+6. The frontend read `VITE_API_URL`, which CRA never injects; it now reads `REACT_APP_API_URL`.
+7. `motor` and `pydantic-settings` were missing from `requirements.txt`.
+8. Added `.gitignore`; removed committed `venv/`, `node_modules/`, `build/`, `.env` and a backup file.
+9. Sen's slope now keeps zero-difference pairs (skipping them biased the slope away from 0); 500 responses no longer leak exception text.
+
+The existing tests only covered 422 validation, which is why these were missed; an end-to-end test with a fake DB is the next addition.
 
 ## Current Status
 
