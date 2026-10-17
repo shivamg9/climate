@@ -9,3 +9,5 @@ slowapi==0.1.8
 pydantic==2.6.3
 pytest==8.2.0
 mongomock==4.4.0
+motor==3.3.2
+pydantic-settings==2.2.1

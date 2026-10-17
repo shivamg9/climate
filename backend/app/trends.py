@@ -56,9 +56,8 @@ def mann_kendall_test(data: np.ndarray) -> Tuple[float, float]:
     slopes = []
     for i in range(n-1):
         for j in range(i+1, n):
-            if data[j] != data[i]:  # Avoid division by zero
-                slope = (data[j] - data[i]) / (j - i)
-                slopes.append(slope)
+            # j > i, so no division by zero; keep zero slopes to avoid bias
+            slopes.append((data[j] - data[i]) / (j - i))
 
     if len(slopes) == 0:
         sen_slope = 0.0
